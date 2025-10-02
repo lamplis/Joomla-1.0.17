@@ -1,0 +1,33 @@
+{
+  "name": "joomla-1.0-testing",
+  "version": "1.0.0",
+  "description": "Comprehensive testing suite for Joomla 1.0 refactoring project",
+  "scripts": {
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run",
+    "cypress:run:chrome": "cypress run --browser chrome",
+    "cypress:run:firefox": "cypress run --browser firefox",
+    "cypress:run:edge": "cypress run --browser edge",
+    "cypress:run:headless": "cypress run --headless",
+    "cypress:run:record": "cypress run --record",
+    "test:e2e": "cypress run",
+    "test:e2e:open": "cypress open",
+    "test:e2e:ci": "cypress run --browser chrome --headless",
+    "test:all": "npm run test:e2e && composer test",
+    "test:coverage": "npm run test:e2e && composer test-coverage"
+  },
+  "devDependencies": {
+    "cypress": "^13.0.0",
+    "cypress-mochawesome-reporter": "^3.0.0",
+    "cypress-real-events": "^1.7.0",
+    "cypress-file-upload": "^5.0.8",
+    "cypress-downloadfile": "^1.2.0",
+    "cypress-iframe": "^1.0.1",
+    "cypress-wait-until": "^1.7.2",
+    "cypress-xpath": "^2.0.1"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  }
+}

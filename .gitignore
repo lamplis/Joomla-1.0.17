@@ -1,2 +1,5 @@
 .htaccess
 configuration.php
+.cursor/*
+mcp/*
+vendor/*

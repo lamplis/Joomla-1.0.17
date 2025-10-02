@@ -1827,7 +1827,7 @@ class mosMainFrame
 			$this->_db->query();
 
 			// tease out the last element of the domain
-			$tldomain = split("\.", $domain);
+			$tldomain = explode("\.", $domain);
 			$tldomain = $tldomain[count($tldomain) - 1];
 
 			if (is_numeric($tldomain))
@@ -3714,7 +3714,7 @@ function mosRedirect($url, $msg = '')
 	}
 
 	// Strip out any line breaks and throw away the rest
-	$url = preg_split("/[\r\n]/", $url);
+	$url = preg_explode("/[\r\n]/", $url);
 	$url = $url[0];
 
 	if ($iFilter->badAttributeValue(array('href', $url)))
@@ -4417,7 +4417,7 @@ function mosFormatDate($date, $format = "", $offset = NULL)
 	{
 		$offset = $mosConfig_offset;
 	}
-	if ($date && ereg("([0-9]{4})-([0-9]{2})-([0-9]{2})[ ]([0-9]{2}):([0-9]{2}):([0-9]{2})", $date, $regs))
+	if ($date && preg_match("([0-9]{4})-([0-9]{2})-([0-9]{2})[ ]([0-9]{2}):([0-9]{2}):([0-9]{2})", $date, $regs))
 	{
 		$date = mktime($regs[4], $regs[5], $regs[6], $regs[2], $regs[3], $regs[1]);
 		$date = $date > -1 ? strftime($format, $date + ($offset * 60 * 60)) : '-';
@@ -5164,7 +5164,7 @@ class mosMambotHandler
 	{
 		$doUnpublished = false;
 
-		$args =& func_get_args();
+		$args = func_get_args();
 		array_shift($args);
 
 		if (isset($this->_events[$event]))
@@ -5396,7 +5396,7 @@ class mosAdminMenus
 					}
 					else
 					{
-						$temp = split('&task=view&id=', $row->link);
+						$temp = explode('&task=view&id=', $row->link);
 						$row->link .= '&Itemid=' . $mainframe->getItemid($temp[1], 0, 0);
 					}
 

@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  # PHP 7.4 with Apache for Joomla 1.0 compatibility
+  joomla-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8081:80"
+    volumes:
+      - ../:/var/www/html
+      - ./docker/php.ini:/usr/local/etc/php/php.ini
+    environment:
+      - APACHE_DOCUMENT_ROOT=/var/www/html
+    depends_on:
+      - joomla-db
+    networks:
+      - joomla-network
+
+  # MySQL 5.5 for Joomla 1.0 era compatibility
+  joomla-db:
+    image: mysql:5.5
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: joomla_test
+      MYSQL_USER: joomla
+      MYSQL_PASSWORD: joomlapassword
+    volumes:
+      - joomla-mysql-data:/var/lib/mysql
+      - ./docker/mysql-init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - joomla-network
+
+  # PHP 8.0 for testing (newer PHP for test tools)
+  joomla-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    volumes:
+      - ../:/var/www/html
+      - ./tests:/var/www/tests
+      - ./vendor:/var/www/vendor
+    working_dir: /var/www/html
+    command: tail -f /dev/null
+    depends_on:
+      - joomla-db
+    networks:
+      - joomla-network
+
+  # Cypress for browser testing
+  cypress:
+    image: cypress/browsers:latest
+    volumes:
+      - .:/e2e
+      - /e2e/node_modules
+    working_dir: /e2e
+    command: tail -f /dev/null
+    networks:
+      - joomla-network
+
+networks:
+  joomla-network:
+    driver: bridge
+
+volumes:
+  joomla-mysql-data:

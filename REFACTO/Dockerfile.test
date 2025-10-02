@@ -1,0 +1,51 @@
+FROM php:7.4-cli
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    libpng-dev \
+    libjpeg-dev \
+    libfreetype6-dev \
+    libzip-dev \
+    libicu-dev \
+    libxml2-dev \
+    libxslt-dev \
+    libcurl4-openssl-dev \
+    libonig-dev \
+    libssl-dev \
+    git \
+    unzip \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install PHP extensions
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install -j$(nproc) \
+    gd \
+    mysqli \
+    pdo_mysql \
+    zip \
+    intl \
+    xml \
+    xsl \
+    curl \
+    mbstring \
+    bcmath
+
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Install PHPUnit and testing tools
+RUN composer global require phpunit/phpunit:^9.0 \
+    && composer global require phpstan/phpstan \
+    && composer global require squizlabs/php_codesniffer \
+    && composer global require sebastian/phpcpd
+
+# Set PHP configuration for testing
+RUN echo "memory_limit = 512M" >> /usr/local/etc/php/conf.d/testing.ini \
+    && echo "max_execution_time = 0" >> /usr/local/etc/php/conf.d/testing.ini \
+    && echo "error_reporting = E_ALL" >> /usr/local/etc/php/conf.d/testing.ini \
+    && echo "display_errors = On" >> /usr/local/etc/php/conf.d/testing.ini
+
+WORKDIR /var/www/html
+
+CMD ["tail", "-f", "/dev/null"]
