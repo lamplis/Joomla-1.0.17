@@ -397,7 +397,7 @@ function showSection($id, $gid, &$access, $now)
  * @param int The number of items to dislpay
  * @param int The offset for pagination
  */
-function showCategory($id, $gid, &$access, $sectionid, $limit, $selected, $limitstart, $now, $selected, $filter)
+function showCategory($id, $gid, &$access, $sectionid, $limit, $selected, $limitstart, $now, $orderSelected, $filter)
 {
 	global $database, $mainframe, $Itemid, $mosConfig_list_limit;
 
@@ -459,15 +459,15 @@ function showCategory($id, $gid, &$access, $sectionid, $limit, $selected, $limit
 	}
 
 	$lists['order_value'] = '';
-	if ($selected)
+        if ($orderSelected)
 	{
-		$orderby = $selected;
-		$lists['order_value'] = $selected;
+                $orderby = $orderSelected;
+                $lists['order_value'] = $orderSelected;
 	}
 	else
 	{
 		$orderby = $params->get('orderby', 'rdate');
-		$selected = $orderby;
+                $orderSelected = $orderby;
 	}
 
 	$params->set('type', 'category');

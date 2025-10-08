@@ -3,3 +3,5 @@ configuration.php
 .cursor/*
 mcp/*
 vendor/*
+REFACTO/*
+sessions/*

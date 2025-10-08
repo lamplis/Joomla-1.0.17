@@ -23,7 +23,6 @@ This project provides a comprehensive testing and refactoring infrastructure for
 Joomla-1.0/
 ├── [Original Joomla 1.0 files]     # Untouched legacy codebase
 ├── REFACTO/                        # Modern testing & refactoring tools
-│   ├── README.md                   # This comprehensive guide
 │   ├── docker/                     # Containerized development environment
 │   │   ├── docker-compose.yml      # Multi-service orchestration
 │   │   ├── Dockerfile              # PHP 7.4 + Apache (Joomla compatible)
@@ -39,9 +38,9 @@ Joomla-1.0/
 │   │   └── support/                # Custom commands
 │   ├── composer.json               # PHP dependencies
 │   ├── phpunit.xml                 # PHPUnit configuration
-│   └── mysql_compat.php            # PHP 7.4+ compatibility layer
-├── start-refacto.sh               # Quick start (Linux/Mac)
-└── start-refacto.bat              # Quick start (Windows)
+│   ├── mysql_compat.php            # PHP 7.4+ compatibility layer
+│   ├── start-refacto.sh            # Quick start (Linux/Mac)
+│   └── start-refacto.bat           # Quick start (Windows)
 ```
 
 ## 🚀 Quick Start
@@ -59,11 +58,11 @@ cd Joomla-1.0
 
 # Start the development environment
 # Windows
-start-refacto.bat
+REFACTO\start-refacto.bat
 
 # Linux/Mac
-chmod +x start-refacto.sh
-./start-refacto.sh
+chmod +x REFACTO/start-refacto.sh
+./REFACTO/start-refacto.sh
 ```
 
 ### 2. Verify Installation
@@ -88,6 +87,41 @@ npm install
 
 # Run all tests
 npm run test:all
+```
+
+## 🗄️ Database Configuration
+
+### Default Database Credentials
+For quick setup, the following default credentials are configured:
+
+| Setting | Value | Description |
+|---------|-------|-------------|
+| **Database Host** | `joomla-db` (Docker) / `localhost:3307` (External) | MySQL server |
+| **Database Name** | `joomla_test` | Default database name |
+| **Username** | `joomla` | Database user |
+| **Password** | `joomlapassword` | Database password |
+| **Port** | `3307` | External access port |
+
+### Database Setup
+The database is automatically configured with:
+- **MySQL 8.0** with legacy compatibility
+- **Relaxed SQL mode** for Joomla 1.0 compatibility
+- **Native password authentication** for older PHP versions
+- **Pre-created database** and user with proper permissions
+
+### Manual Database Connection
+If you need to connect externally:
+
+```bash
+# Connect via command line
+mysql -h localhost -P 3307 -u joomla -pjoomlapassword joomla_test
+
+# Or update your Joomla configuration
+# Edit configuration.php with these values:
+$mosConfig_host = 'localhost:3307';
+$mosConfig_user = 'joomla';
+$mosConfig_password = 'joomlapassword';
+$mosConfig_db = 'joomla_test';
 ```
 
 ## 🏗️ Development Environment
@@ -348,7 +382,7 @@ echo 'ereg: ' . (function_exists('ereg') ? 'OK' : 'MISSING') . PHP_EOL;
 ## 📚 Documentation
 
 ### Key Documentation Files
-- **REFACTO/README.md**: This comprehensive guide
+- **README.md**: This comprehensive guide
 - **docker/docker-compose.yml**: Service configuration
 - **REFACTO/phpunit.xml**: PHPUnit test configuration
 - **REFACTO/cypress.config.js**: Cypress test configuration
@@ -404,10 +438,10 @@ This project maintains the original Joomla 1.0 GPL v2 license. See [LICENSE.php]
 **Quick Start Command:**
 ```bash
 # Windows
-start-refacto.bat
+REFACTO\start-refacto.bat
 
 # Linux/Mac
-chmod +x start-refacto.sh && ./start-refacto.sh
+chmod +x REFACTO/start-refacto.sh && ./REFACTO/start-refacto.sh
 ```
 
 **Access Points:**

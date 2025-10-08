@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     git \
     unzip \
+    msmtp \
     && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions
@@ -42,26 +43,23 @@ RUN echo "memory_limit = 128M" >> /usr/local/etc/php/conf.d/joomla.ini \
     && echo "register_globals = Off" >> /usr/local/etc/php/conf.d/joomla.ini \
     && echo "magic_quotes_gpc = Off" >> /usr/local/etc/php/conf.d/joomla.ini \
     && echo "session.auto_start = Off" >> /usr/local/etc/php/conf.d/joomla.ini \
-    && echo "short_open_tag = On" >> /usr/local/etc/php/conf.d/joomla.ini
+    && echo "short_open_tag = On" >> /usr/local/etc/php/conf.d/joomla.ini \
+    && echo "auto_prepend_file = /var/www/html/REFACTO/mysql_compat.php" > /usr/local/etc/php/conf.d/00-compat.ini \
+    && echo "session.save_path = /var/www/html/sessions" > /usr/local/etc/php/conf.d/99-session.ini
+
+# Configure msmtp to relay to Mailpit (container name 'mailpit')
+RUN printf "account default\nhost mailpit\nport 1025\nfrom noreply@example.test\nauto_from on\n" > /etc/msmtprc \
+    && chmod 600 /etc/msmtprc \
+    && chown www-data:www-data /etc/msmtprc \
+    && echo "sendmail_path = /usr/bin/msmtp -t" > /usr/local/etc/php/conf.d/98-mail.ini
 
 # Set Apache document root
 ENV APACHE_DOCUMENT_ROOT /var/www/html
 
-# Create configuration file
-RUN echo "<?php" > /var/www/html/configuration.php \
-    && echo "\$mosConfig_offline = '0';" >> /var/www/html/configuration.php \
-    && echo "\$mosConfig_host = 'joomla-db';" >> /var/www/html/configuration.php \
-    && echo "\$mosConfig_user = 'joomla';" >> /var/www/html/configuration.php \
-    && echo "\$mosConfig_password = 'joomlapassword';" >> /var/www/html/configuration.php \
-    && echo "\$mosConfig_db = 'joomla_test';" >> /var/www/html/configuration.php \
-    && echo "\$mosConfig_dbprefix = 'jos_';" >> /var/www/html/configuration.php \
-    && echo "\$mosConfig_lang = 'english';" >> /var/www/html/configuration.php \
-    && echo "\$mosConfig_absolute_path = '/var/www/html';" >> /var/www/html/configuration.php \
-    && echo "\$mosConfig_live_site = 'http://localhost:8081';" >> /var/www/html/configuration.php \
-    && echo "\$mosConfig_sitename = 'Joomla Test Site';" >> /var/www/html/configuration.php \
-    && echo "\$mosConfig_secret = 'test_secret_key';" >> /var/www/html/configuration.php \
-    && echo "\$mosConfig_debug = '1';" >> /var/www/html/configuration.php \
-    && echo "define('RG_EMULATION', 0);" >> /var/www/html/configuration.php
+# Prepare writable session path and ensure installer triggers
+RUN mkdir -p /var/www/html/sessions \
+    && chown -R www-data:www-data /var/www/html/sessions \
+    && chmod 777 /var/www/html/sessions
 
 EXPOSE 80
 

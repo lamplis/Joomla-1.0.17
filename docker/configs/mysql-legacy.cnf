@@ -1,0 +1,57 @@
+[mysqld]
+# Legacy mode configuration for Joomla 1.0 compatibility with MySQL 8.4
+
+# SQL Mode - completely relaxed for maximum compatibility
+sql_mode = ""
+
+# Authentication - use legacy native password plugin
+default_authentication_plugin = mysql_native_password
+
+# Character set and collation
+character-set-server = utf8mb4
+collation-server = utf8mb4_general_ci
+
+# Table name case sensitivity (Linux default)
+lower_case_table_names = 0
+
+# InnoDB settings for legacy compatibility
+innodb_strict_mode = 0
+innodb_default_row_format = dynamic
+
+# Function creation permissions (needed for some Joomla 1.0 extensions)
+log_bin_trust_function_creators = 1
+
+# Network and connection settings
+max_allowed_packet = 64M
+wait_timeout = 28800
+interactive_timeout = 28800
+net_read_timeout = 120
+net_write_timeout = 120
+
+# Buffer settings optimized for legacy applications
+key_buffer_size = 32M
+max_heap_table_size = 32M
+tmp_table_size = 32M
+
+# Query cache (deprecated in 8.0+ but some legacy apps expect it)
+# Note: Query cache is removed in MySQL 8.0+, this is for documentation
+# query_cache_type = 1
+# query_cache_size = 32M
+
+# Logging (minimal for performance)
+general_log = 0
+slow_query_log = 0
+
+# Timezone handling
+default-time-zone = '+00:00'
+
+# Legacy compatibility flags
+explicit_defaults_for_timestamp = 0
+
+[mysql]
+# Client settings for legacy compatibility
+default-character-set = utf8mb4
+
+[client]
+# Client connection settings
+default-character-set = utf8mb4

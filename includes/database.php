@@ -1,6 +1,6 @@
 <?php
 /**
- * @version    $Id$
+ * @version    $Id: database.mysqli.php 973 2005-11-11 02:18:08Z eddieajau $
  * @package    Joomla
  * @subpackage Database
  * @copyright  Copyright (C) 2005 Open Source Matters. All rights reserved.
@@ -62,7 +62,7 @@ class database
 	function database($host = 'localhost', $user, $pass, $db = '', $table_prefix = '', $goOffline = true)
 	{
 		// perform a number of fatality checks, then die gracefully
-		if (!function_exists('mysql_connect'))
+		if (!function_exists('mysqli_connect'))
 		{
 			$mosSystemError = 1;
 			if ($goOffline)
@@ -73,35 +73,18 @@ class database
 				exit();
 			}
 		}
-		if (phpversion() < '4.2.0')
+		if (!($this->_resource = @mysqli_connect($host, $user, $pass)))
 		{
-			if (!($this->_resource = @mysql_connect($host, $user, $pass)))
+			$mosSystemError = 2;
+			if ($goOffline)
 			{
-				$mosSystemError = 2;
-				if ($goOffline)
-				{
-					$basePath = dirname(__FILE__);
-					include $basePath . '/../configuration.php';
-					include $basePath . '/../offline.php';
-					exit();
-				}
+				$basePath = dirname(__FILE__);
+				include $basePath . '/../configuration.php';
+				include $basePath . '/../offline.php';
+				exit();
 			}
 		}
-		else
-		{
-			if (!($this->_resource = @mysql_connect($host, $user, $pass, true)))
-			{
-				$mosSystemError = 2;
-				if ($goOffline)
-				{
-					$basePath = dirname(__FILE__);
-					include $basePath . '/../configuration.php';
-					include $basePath . '/../offline.php';
-					exit();
-				}
-			}
-		}
-		if ($db != '' && !mysql_select_db($db, $this->_resource))
+		if ($db != '' && !mysqli_select_db($this->_resource, $db))
 		{
 			$mosSystemError = 3;
 			if ($goOffline)
@@ -113,10 +96,35 @@ class database
 			}
 		}
 		$this->_table_prefix = $table_prefix;
-		//@mysql_query("SET NAMES 'utf8'", $this->_resource);
 		$this->_ticker = 0;
 		$this->_log = array();
+
+		$this->setSQLMode();
 	}
+
+/**
+ * PHP 5+ constructor wrapper for legacy Joomla 1.0 code
+ * Delegates to the old-style constructor for backwards compatibility.
+ */
+function __construct()
+{
+	$args = func_get_args();
+	call_user_func_array(array($this, 'database'), $args);
+}
+
+/**
+ * Joomla 1.0 expects ability to relax SQL modes on connect.
+ * Provide a mysqli-based no-op that clears STRICT modes when possible.
+ */
+function setSQLMode($mode = '')
+{
+	// Keep core behavior minimal; delegate any environment-specific tweaks
+	// to an optional override hook to avoid drifting this file from upstream.
+	if ($this->_resource && function_exists('joomla_mysql8_set_sql_mode')) {
+		@joomla_mysql8_set_sql_mode($this->_resource, $mode);
+	}
+	return true;
+}
 
 	/**
 	 * @param int
@@ -154,16 +162,7 @@ class database
 	 */
 	function getEscaped($text, $extra = false)
 	{
-		// Use the appropriate escape string depending upon which version of php
-		// you are running
-		if (version_compare(phpversion(), '4.3.0', '<'))
-		{
-			$string = mysql_escape_string($text);
-		}
-		else
-		{
-			$string = mysql_real_escape_string($text, $this->_resource);
-		}
+		$string = mysqli_real_escape_string($this->_resource, $text);
 		if ($extra)
 		{
 			$string = addcslashes($string, '%_');
@@ -201,8 +200,53 @@ class database
 		}
 		else
 		{
-			return $q{0} . $s . $q{1};
+            return $q[0] . $s . $q[1];
 		}
+	}
+
+	/**
+	 * Quote based on field type
+	 *
+	 * @param mixed  The value of the field
+	 * @param string The field type
+	 *
+	 * @return string The correct field format
+	 * @private
+	 */
+	function _quoteField($value, $type)
+	{
+		switch ($type)
+		{
+			case 'text':
+			case 'mediumtext':
+			case 'varchar':
+				$result = $this->Quote($value);
+				break;
+
+			case 'date':
+			case 'datetime':
+				if (empty($value))
+				{
+					$value = $this->_nullDate;
+				}
+				$result = $this->Quote($value);
+				break;
+
+			case 'float':
+			case 'double':
+				$result = (double) $value;
+				break;
+
+			case 'int':
+			case 'tinyint':
+			case 'tinyint unsigned':
+			case 'int unsigned':
+			case 'unsigned':
+			default:
+				$result = (int) $value;
+				break;
+		}
+		return $result;
 	}
 
 	/**
@@ -304,7 +348,7 @@ class database
 					break;
 				}
 				$l = $k - 1;
-				while ($l >= 0 && $sql{$l} == '\\')
+                while ($l >= 0 && $sql[$l] == '\\')
 				{
 					$l--;
 					$escaped = !$escaped;
@@ -346,11 +390,7 @@ class database
 	function query()
 	{
 		global $mosConfig_debug;
-		if ($this->_limit > 0 && $this->_offset == 0)
-		{
-			$this->_sql .= "\nLIMIT $this->_limit";
-		}
-		else if ($this->_limit > 0 || $this->_offset > 0)
+		if ($this->_limit > 0 || $this->_offset > 0)
 		{
 			$this->_sql .= "\nLIMIT $this->_offset, $this->_limit";
 		}
@@ -361,14 +401,14 @@ class database
 		}
 		$this->_errorNum = 0;
 		$this->_errorMsg = '';
-		$this->_cursor = mysql_query($this->_sql, $this->_resource);
+		$this->_cursor = mysqli_query($this->_resource, $this->_sql);
 		if (!$this->_cursor)
 		{
-			$this->_errorNum = mysql_errno($this->_resource);
-			$this->_errorMsg = mysql_error($this->_resource) . " SQL=$this->_sql";
+			$this->_errorNum = mysqli_errno($this->_resource);
+			$this->_errorMsg = mysqli_error($this->_resource) . " SQL=$this->_sql";
 			if ($this->_debug)
 			{
-				trigger_error(mysql_error($this->_resource), E_USER_NOTICE);
+				trigger_error(mysqli_error($this->_resource), E_USER_NOTICE);
 				//echo "<pre>" . $this->_sql . "</pre>\n";
 				if (function_exists('debug_backtrace'))
 				{
@@ -391,7 +431,7 @@ class database
 	 */
 	function getAffectedRows()
 	{
-		return mysql_affected_rows($this->_resource);
+		return mysqli_affected_rows($this->_resource);
 	}
 
 	function query_batch($abort_on_error = true, $p_transaction_safe = false)
@@ -400,7 +440,7 @@ class database
 		$this->_errorMsg = '';
 		if ($p_transaction_safe)
 		{
-			$si = mysql_get_server_info($this->_resource);
+			$si = mysqli_get_server_info();
 			preg_match_all("/(\d+)\.(\d+)\.(\d+)/i", $si, $m);
 			if ($m[1] >= 4)
 			{
@@ -422,12 +462,12 @@ class database
 			$command_line = trim($command_line);
 			if ($command_line != '')
 			{
-				$this->_cursor = mysql_query($command_line, $this->_resource);
+				$this->_cursor = mysqli_query($command_line, $this->_resource);
 				if (!$this->_cursor)
 				{
 					$error = 1;
-					$this->_errorNum .= mysql_errno($this->_resource) . ' ';
-					$this->_errorMsg .= mysql_error($this->_resource) . " SQL=$command_line <br />";
+					$this->_errorNum .= mysqli_errno($this->_resource) . ' ';
+					$this->_errorMsg .= mysqli_error($this->_resource) . " SQL=$command_line <br />";
 					if ($abort_on_error)
 					{
 						return $this->_cursor;
@@ -455,7 +495,7 @@ class database
 
 		$buf = "<table cellspacing=\"1\" cellpadding=\"2\" border=\"0\" bgcolor=\"#000000\" align=\"center\">";
 		$buf .= $this->getQuery();
-		while ($row = mysql_fetch_assoc($cur))
+		while ($row = mysqli_fetch_assoc($cur))
 		{
 			if ($first)
 			{
@@ -475,7 +515,7 @@ class database
 			$buf .= "</tr>";
 		}
 		$buf .= "</table><br />&nbsp;";
-		mysql_free_result($cur);
+		mysqli_free_result($cur);
 
 		$this->_sql = $temp;
 
@@ -487,7 +527,7 @@ class database
 	 */
 	function getNumRows($cur = null)
 	{
-		return mysql_num_rows($cur ? $cur : $this->_cursor);
+		return mysqli_num_rows($cur ? $cur : $this->_cursor);
 	}
 
 	/**
@@ -502,11 +542,11 @@ class database
 			return null;
 		}
 		$ret = null;
-		if ($row = mysql_fetch_row($cur))
+		if ($row = mysqli_fetch_row($cur))
 		{
 			$ret = $row[0];
 		}
-		mysql_free_result($cur);
+		mysqli_free_result($cur);
 		return $ret;
 	}
 
@@ -520,11 +560,11 @@ class database
 			return null;
 		}
 		$array = array();
-		while ($row = mysql_fetch_row($cur))
+		while ($row = mysqli_fetch_row($cur))
 		{
 			$array[] = $row[$numinarray];
 		}
-		mysql_free_result($cur);
+		mysqli_free_result($cur);
 		return $array;
 	}
 
@@ -542,7 +582,7 @@ class database
 			return null;
 		}
 		$array = array();
-		while ($row = mysql_fetch_assoc($cur))
+		while ($row = mysqli_fetch_assoc($cur))
 		{
 			if ($key)
 			{
@@ -553,7 +593,7 @@ class database
 				$array[] = $row;
 			}
 		}
-		mysql_free_result($cur);
+		mysqli_free_result($cur);
 		return $array;
 	}
 
@@ -574,9 +614,9 @@ class database
 			{
 				return false;
 			}
-			if ($array = mysql_fetch_assoc($cur))
+			if ($array = mysqli_fetch_assoc($cur))
 			{
-				mysql_free_result($cur);
+				mysqli_free_result($cur);
 				mosBindArrayToObject($array, $object, null, null, false);
 				return true;
 			}
@@ -589,9 +629,9 @@ class database
 		{
 			if ($cur = $this->query())
 			{
-				if ($object = mysql_fetch_object($cur))
+				if ($object = mysqli_fetch_object($cur))
 				{
-					mysql_free_result($cur);
+					mysqli_free_result($cur);
 					return true;
 				}
 				else
@@ -623,7 +663,7 @@ class database
 			return null;
 		}
 		$array = array();
-		while ($row = mysql_fetch_object($cur))
+		while ($row = mysqli_fetch_object($cur))
 		{
 			if ($key)
 			{
@@ -634,7 +674,7 @@ class database
 				$array[] = $row;
 			}
 		}
-		mysql_free_result($cur);
+		mysqli_free_result($cur);
 		return $array;
 	}
 
@@ -648,33 +688,33 @@ class database
 			return null;
 		}
 		$ret = null;
-		if ($row = mysql_fetch_row($cur))
+		if ($row = mysqli_fetch_row($cur))
 		{
 			$ret = $row;
 		}
-		mysql_free_result($cur);
+		mysqli_free_result($cur);
 		return $ret;
 	}
 
 	/**
 	 * Load a list of database rows (numeric column indexing)
 	 *
-	 * @param int Value of the primary key
+	 * @param string The field name of a primary key
 	 *
 	 * @return array If <var>key</var> is empty as sequential list of returned records.
 	 * If <var>key</var> is not empty then the returned array is indexed by the value
 	 * the database key.  Returns <var>null</var> if the query fails.
 	 */
-	function loadRowList($key = null)
+	function loadRowList($key = '')
 	{
 		if (!($cur = $this->query()))
 		{
 			return null;
 		}
 		$array = array();
-		while ($row = mysql_fetch_row($cur))
+		while ($row = mysqli_fetch_row($cur))
 		{
-			if (!is_null($key))
+			if ($key)
 			{
 				$array[$row[$key]] = $row;
 			}
@@ -683,7 +723,7 @@ class database
 				$array[] = $row;
 			}
 		}
-		mysql_free_result($cur);
+		mysqli_free_result($cur);
 		return $array;
 	}
 
@@ -711,7 +751,7 @@ class database
 				continue;
 			}
 			$fields[] = $this->NameQuote($k);
-			$values[] = $this->Quote($v);
+			$values[] = $this->_quoteField($v, $object->_getFieldType($k));
 		}
 		$this->setQuery(sprintf($fmtsql, implode(",", $fields), implode(",", $values)));
 		($verbose) && print "$sql<br />\n";
@@ -719,7 +759,7 @@ class database
 		{
 			return false;
 		}
-		$id = mysql_insert_id($this->_resource);
+		$id = mysqli_insert_id($this->_resource);
 		($verbose) && print "id=[$id]<br />\n";
 		if ($keyName && $id)
 		{
@@ -748,21 +788,18 @@ class database
 			}
 			if ($k == $keyName)
 			{ // PK not to be updated
-				$where = $keyName . '=' . $this->Quote($v);
+				$where = $k . '=' . $this->_quoteField($v, $object->_getFieldType($k));
 				continue;
 			}
 			if ($v === NULL && !$updateNulls)
 			{
 				continue;
 			}
-			if ($v == '')
-			{
-				$val = "''";
-			}
-			else
-			{
-				$val = $this->Quote($v);
-			}
+			//if( $v == '' ) {
+			//	$val = "''";
+			//} else {
+			$val = $this->_quoteField($v, $object->_getFieldType($k));
+			//}
 			$tmp[] = $this->NameQuote($k) . '=' . $val;
 		}
 		$this->setQuery(sprintf($fmtsql, implode(",", $tmp), $where));
@@ -783,12 +820,12 @@ class database
 
 	function insertid()
 	{
-		return mysql_insert_id($this->_resource);
+		return mysqli_insert_id($this->_resource);
 	}
 
 	function getVersion()
 	{
-		return mysql_get_server_info($this->_resource);
+		return mysqli_get_server_info($this->_resource);
 	}
 
 	/**
@@ -861,6 +898,7 @@ class database
  *
  * Parent classes to all database derived objects.  Customisation will generally
  * not involve tampering with this object.
+ * @package    Joomla
  * @author     Andrew Eddie <eddieajau@users.sourceforge.net
  */
 class mosDBTable
@@ -873,6 +911,8 @@ class mosDBTable
 	var $_error = '';
 	/** @var mosDatabase Database connector */
 	var $_db = null;
+	/** @var array schema */
+	var $_schema = null;
 
 	/**
 	 *    Object constructor to set table and key field
@@ -882,7 +922,7 @@ class mosDBTable
 	 * @param string $table name of the table in the db schema relating to child class
 	 * @param string $key   name of the primary key field in the table
 	 */
-	function mosDBTable($table, $key, &$db)
+function mosDBTable($table, $key, &$db)
 	{
 		$this->_tbl = $table;
 		$this->_tbl_key = $key;
@@ -908,6 +948,62 @@ class mosDBTable
 			}
 		}
 		return $cache;
+	}
+
+	/**
+	 * Sets the named schema array
+	 * @private
+	 * @since 1.0.6
+	 */
+	function _setSchema($array = null)
+	{
+		if (is_array($array))
+		{
+			$this->_schema = $array;
+		}
+		else
+		{
+			$tableFields = $this->_db->getTableFields(array($this->_tbl));
+			$this->_schema = $tableFields[$this->_tbl];
+		}
+	}
+
+	/**
+	 * Gets the schema array
+	 * @private
+	 * @since 1.0.6
+	 */
+	function _getSchema()
+	{
+		if ($this->_schema == null)
+		{
+			$this->_setSchema();
+		}
+		return $this->_schema;
+	}
+
+	/**
+	 * Returns the [database] type of the field
+	 *
+	 * @param string The name of the field
+	 *
+	 * @return string The field type
+	 * @private
+	 * @since 1.0.6
+	 */
+	function _getFieldType($name)
+	{
+		$schema = $this->_getSchema();
+
+		if (isset($schema[$name]))
+		{
+			$result = $schema[$name];
+		}
+		else
+		{
+			$result = 'text';
+		}
+		return $result;
 	}
 
 	/**
@@ -1028,14 +1124,6 @@ class mosDBTable
 			return false;
 		}
 		//Note: Prior to PHP 4.2.0, Uninitialized class variables will not be reported by get_class_vars().
-		/*
-		$class_vars = $this->getPublicProperties();
-		foreach ($class_vars as $name => $value) {
-			if ($name != $k) {
-				$this->$name = $value;
-			}
-		}
-		*/
 		$class_vars = get_class_vars(get_class($this));
 		foreach ($class_vars as $name => $value)
 		{
@@ -1079,7 +1167,7 @@ class mosDBTable
 	{
 		$k = $this->_tbl_key;
 
-		if ($this->$k != 0)
+		if ($this->$k)
 		{
 			$ret = $this->_db->updateObject($this->_tbl, $this, $this->_tbl_key, $updateNulls);
 		}
@@ -1087,7 +1175,6 @@ class mosDBTable
 		{
 			$ret = $this->_db->insertObject($this->_tbl, $this, $this->_tbl_key);
 		}
-
 		if (!$ret)
 		{
 			$this->_error = strtolower(get_class($this)) . "::store failed <br />" . $this->_db->getErrorMsg();
@@ -1644,5 +1731,15 @@ class mosDBTable
 		$xml .= '</record>';
 
 		return $xml;
+	}
+}
+
+/**
+ * PHP 5+ constructor wrapper for legacy Joomla 1.0 code
+ */
+function __construct($table = null, $key = null, &$db = null)
+{
+	if ($table !== null) {
+		$this->mosDBTable($table, $key, $db);
 	}
 }

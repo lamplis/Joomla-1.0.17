@@ -27,7 +27,7 @@ class joomlaVersion
 	/** @var string Development Status */
 	var $DEV_STATUS = 'Stable';
 	/** @var int Sub Release Level */
-	var $DEV_LEVEL = '16';
+	var $DEV_LEVEL = '17';
 	/** @var int build Number */
 	var $BUILD = '$Revision$';
 	/** @var string Codename */

@@ -25,14 +25,12 @@ require_once JOOMLA_ROOT . '/globals.php';
 require_once JOOMLA_ROOT . '/configuration.php';
 require_once JOOMLA_ROOT . '/includes/joomla.php';
 
-// Set up test database connection
-if (getenv('DB_HOST')) {
-    $GLOBALS['mosConfig_host'] = getenv('DB_HOST');
-    $GLOBALS['mosConfig_user'] = getenv('DB_USER');
-    $GLOBALS['mosConfig_password'] = getenv('DB_PASS');
-    $GLOBALS['mosConfig_db'] = getenv('DB_NAME');
-    $GLOBALS['mosConfig_dbprefix'] = getenv('DB_PREFIX') ?: 'jos_';
-}
+// Set up test database connection (defaults to REFACTO docker compose values)
+$GLOBALS['mosConfig_host'] = getenv('DB_HOST') ?: 'joomla-db';
+$GLOBALS['mosConfig_user'] = getenv('DB_USER') ?: 'joomla';
+$GLOBALS['mosConfig_password'] = getenv('DB_PASS') ?: 'joomlapassword';
+$GLOBALS['mosConfig_db'] = getenv('DB_NAME') ?: 'joomla_test';
+$GLOBALS['mosConfig_dbprefix'] = getenv('DB_PREFIX') ?: 'jos_';
 
 // Initialize database for testing
 if (isset($GLOBALS['mosConfig_host'])) {
@@ -40,9 +38,12 @@ if (isset($GLOBALS['mosConfig_host'])) {
 }
 
 // Include test helpers
-require_once __DIR__ . '/helpers/TestHelper.php';
-require_once __DIR__ . '/helpers/DatabaseHelper.php';
-require_once __DIR__ . '/helpers/MockHelper.php';
+foreach (['helpers/TestHelper.php','helpers/DatabaseHelper.php','helpers/MockHelper.php'] as $optional) {
+    $path = __DIR__ . '/' . $optional;
+    if (file_exists($path)) {
+        require_once $path;
+    }
+}
 
 // Set up test data directory
 if (!defined('TEST_DATA_DIR')) {
@@ -94,8 +95,10 @@ $GLOBALS['my']->usertype = 'Super Administrator';
 $GLOBALS['my']->gid = 25;
 $GLOBALS['my']->block = 0;
 
-// Set up mainframe for testing
-$GLOBALS['mainframe'] = new mosMainFrame($database, 'com_content', '.');
-$GLOBALS['mainframe']->initSession();
+// Set up mainframe for testing (guard if db missing)
+if (isset($database) && $database) {
+    $GLOBALS['mainframe'] = new mosMainFrame($database, 'com_content', '.');
+    // Skip real session initialization in tests to avoid DB/session dependencies
+}
 
 echo "Joomla 1.0 Test Environment Initialized\n";

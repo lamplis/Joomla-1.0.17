@@ -7,10 +7,9 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8081:80"
+      - "8082:80"
     volumes:
       - ../:/var/www/html
-      - ./docker/php.ini:/usr/local/etc/php/php.ini
     environment:
       - APACHE_DOCUMENT_ROOT=/var/www/html
     depends_on:
@@ -18,19 +17,32 @@ services:
     networks:
       - joomla-network
 
-  # MySQL 5.5 for Joomla 1.0 era compatibility
+  # MySQL 8.4 (latest stable) with legacy mode for Joomla 1.0 compatibility
   joomla-db:
-    image: mysql:5.5
+    image: mysql:8.4
     ports:
-      - "3306:3306"
+      - "3307:3306"
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword
       MYSQL_DATABASE: joomla_test
       MYSQL_USER: joomla
       MYSQL_PASSWORD: joomlapassword
+      MYSQL_INITDB_SKIP_TZINFO: 1
+    command: >
+      --sql-mode=""
+      --default-authentication-plugin=mysql_native_password
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_general_ci
+      --lower-case-table-names=0
+      --innodb-strict-mode=0
+      --log-bin-trust-function-creators=1
+      --max-allowed-packet=64M
+      --wait-timeout=28800
+      --interactive-timeout=28800
     volumes:
       - joomla-mysql-data:/var/lib/mysql
-      - ./docker/mysql-init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./configs/mysql-init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./configs/mysql-legacy.cnf:/etc/mysql/conf.d/legacy.cnf
     networks:
       - joomla-network
 
@@ -58,6 +70,15 @@ services:
       - /e2e/node_modules
     working_dir: /e2e
     command: tail -f /dev/null
+    networks:
+      - joomla-network
+
+  # Mailpit for SMTP testing (web UI on 8025, SMTP on 1025)
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+      - "1025:1025"
     networks:
       - joomla-network
 

@@ -37,16 +37,19 @@ function applyJoomlaCompatibilityPatches() {
         $content
     );
     
+    // Fix split() function calls (more specific patterns)
+    $content = preg_replace('/split\s*\(\s*([^,]+),\s*([^)]+)\)/', 'explode($1, $2)', $content);
+    
     // Fix set_magic_quotes_runtime() which was removed in PHP 7.4
     $content = str_replace(
-        'set_magic_quotes_runtime(0);',
-        '// set_magic_quotes_runtime(0); // Removed in PHP 7.4',
+        '@set_magic_quotes_runtime(0);',
+        '// @set_magic_quotes_runtime(0); // Removed in PHP 7.4',
         $content
     );
     
     $content = str_replace(
-        'set_magic_quotes_runtime(1);',
-        '// set_magic_quotes_runtime(1); // Removed in PHP 7.4',
+        '@set_magic_quotes_runtime(1);',
+        '// @set_magic_quotes_runtime(1); // Removed in PHP 7.4',
         $content
     );
     
